@@ -664,7 +664,9 @@ function M.rename(new_name, opts)
       local handler = client.handlers[ms.textDocument_rename]
         or lsp.handlers[ms.textDocument_rename]
       client:request(ms.textDocument_rename, params, function(...)
+        vim.cmd("mkview")
         handler(...)
+        vim.cmd("loadview")
         try_use_client(next(clients, idx))
       end, bufnr)
     end
