@@ -19,19 +19,14 @@ local api = vim.api
 ---The range on which to evaluate foldexpr.
 ---When in insert mode, the evaluation is deferred to InsertLeave.
 ---@field foldupdate_range? Range2
----
----The treesitter parser associated with this buffer.
----@field parser? vim.treesitter.LanguageTree
 local FoldInfo = {}
 FoldInfo.__index = FoldInfo
 
 ---@private
----@param bufnr integer
-function FoldInfo.new(bufnr)
+function FoldInfo.new()
   return setmetatable({
     levels0 = {},
     levels = {},
-    parser = ts.get_parser(bufnr, nil, { error = false }),
   }, FoldInfo)
 end
 
@@ -74,10 +69,7 @@ local function compute_folds_levels(bufnr, info, srow, erow, callback)
   srow = srow or 0
   erow = erow or api.nvim_buf_line_count(bufnr)
 
-  local parser = info.parser
-  if not parser then
-    return
-  end
+  local parser = assert(ts.get_parser(bufnr, nil, { error = false }))
 
   parser:parse(nil, function(_, trees)
     if not trees then
@@ -368,21 +360,13 @@ function M.foldexpr(lnum)
   lnum = lnum or vim.v.lnum
   local bufnr = api.nvim_get_current_buf()
 
+  local parser = ts.get_parser(bufnr, nil, { error = false })
+  if not parser then
+    return '0'
+  end
+
   if not foldinfos[bufnr] then
-    foldinfos[bufnr] = FoldInfo.new(bufnr)
-    api.nvim_create_autocmd('BufUnload', {
-      buffer = bufnr,
-      once = true,
-      callback = function()
-        foldinfos[bufnr] = nil
-      end,
-    })
-
-    local parser = foldinfos[bufnr].parser
-    if not parser then
-      return '0'
-    end
-
+    foldinfos[bufnr] = FoldInfo.new()
     compute_folds_levels(bufnr, foldinfos[bufnr])
 
     parser:register_cbs({
@@ -412,7 +396,7 @@ api.nvim_create_autocmd('OptionSet', {
       or foldinfos[buf] and { buf }
       or {}
     for _, bufnr in ipairs(bufs) do
-      foldinfos[bufnr] = FoldInfo.new(bufnr)
+      foldinfos[bufnr] = FoldInfo.new()
       api.nvim_buf_call(bufnr, function()
         compute_folds_levels(bufnr, foldinfos[bufnr], nil, nil, function()
           foldinfos[bufnr]:foldupdate(bufnr, 0, api.nvim_buf_line_count(bufnr))
