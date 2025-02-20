@@ -732,8 +732,8 @@ local extension = {
   mc = detect.mc,
   quake = 'm3quake',
   m4 = function(path, bufnr)
-    path = path:lower()
-    return not (path:find('html%.m4$') or path:find('fvwm2rc')) and 'm4' or nil
+    local pathl = path:lower()
+    return not (pathl:find('html%.m4$') or pathl:find('fvwm2rc')) and 'm4' or nil
   end,
   eml = 'mail',
   mk = detect.make,
@@ -1074,6 +1074,7 @@ local extension = {
   sass = 'sass',
   sbt = 'sbt',
   scala = 'scala',
+  mill = 'scala',
   ss = 'scheme',
   scm = 'scheme',
   sld = 'scheme',
@@ -1190,6 +1191,7 @@ local extension = {
   svh = 'systemverilog',
   sv = 'systemverilog',
   cmm = 'trace32',
+  cmmt = 'trace32',
   t32 = 'trace32',
   td = 'tablegen',
   tak = 'tak',

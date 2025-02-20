@@ -62,7 +62,7 @@ Integer nvim_create_namespace(String name)
 {
   handle_T id = map_get(String, int)(&namespace_ids, name);
   if (id > 0) {
-    return id;
+    return (Integer)id;
   }
   id = next_namespace_id++;
   if (name.size > 0) {
@@ -400,6 +400,15 @@ Array nvim_buf_get_extmarks(Buffer buffer, Integer ns_id, Object start, Object e
 ///                   (highest priority last).
 ///               - virt_text_pos : position of virtual text. Possible values:
 ///                 - "eol": right after eol character (default).
+///                 - "eol_right_align": display right aligned in the window
+///                                      unless the virtual text is longer than
+///                                      the space available. If the virtual
+///                                      text is too long, it is truncated to
+///                                      fit in the window after the EOL
+///                                      character. If the line is wrapped, the
+///                                      virtual text is shown after the end of
+///                                      the line rather than the previous
+///                                      screen line.
 ///                 - "overlay": display over the specified column, without
 ///                              shifting the underlying text.
 ///                 - "right_align": display right aligned in the window.
@@ -436,10 +445,14 @@ Array nvim_buf_get_extmarks(Buffer buffer, Integer ns_id, Object start, Object e
 ///                   placed below the buffer line containing the mark.
 ///
 ///               - virt_lines_above: place virtual lines above instead.
-///               - virt_lines_leftcol: Place extmarks in the leftmost
+///               - virt_lines_leftcol: Place virtual lines in the leftmost
 ///                                     column of the window, bypassing
 ///                                     sign and number columns.
-///
+///               - virt_lines_overflow: controls how to handle virtual lines wider
+///                   than the window. Currently takes the one of the following values:
+///                 - "trunc": truncate virtual lines on the right (default).
+///                 - "scroll": virtual lines can scroll horizontally with 'nowrap',
+///                    otherwise the same as "trunc".
 ///               - ephemeral : for use with |nvim_set_decoration_provider()|
 ///                   callbacks. The mark will only be used for the current
 ///                   redraw cycle, and not be permantently stored in the
@@ -620,6 +633,8 @@ Integer nvim_buf_set_extmark(Buffer buffer, Integer ns_id, Integer line, Integer
       virt_text.pos = kVPosOverlay;
     } else if (strequal("right_align", str.data)) {
       virt_text.pos = kVPosRightAlign;
+    } else if (strequal("eol_right_align", str.data)) {
+      virt_text.pos = kVPosEndOfLineRightAlign;
     } else if (strequal("inline", str.data)) {
       virt_text.pos = kVPosInline;
     } else {
@@ -658,7 +673,17 @@ Integer nvim_buf_set_extmark(Buffer buffer, Integer ns_id, Integer line, Integer
     }
   }
 
-  bool virt_lines_leftcol = opts->virt_lines_leftcol;
+  int virt_lines_flags = opts->virt_lines_leftcol ? kVLLeftcol : 0;
+  if (HAS_KEY(opts, set_extmark, virt_lines_overflow)) {
+    String str = opts->virt_lines_overflow;
+    if (strequal("scroll", str.data)) {
+      virt_lines_flags |= kVLScroll;
+    } else if (!strequal("trunc", str.data)) {
+      VALIDATE_S(false, "virt_lines_overflow", str.data, {
+        goto error;
+      });
+    }
+  }
 
   if (HAS_KEY(opts, set_extmark, virt_lines)) {
     Array a = opts->virt_lines;
@@ -668,7 +693,7 @@ Integer nvim_buf_set_extmark(Buffer buffer, Integer ns_id, Integer line, Integer
       });
       int dummig;
       VirtText jtem = parse_virt_text(a.items[j].data.array, err, &dummig);
-      kv_push(virt_lines.data.virt_lines, ((struct virt_line){ jtem, virt_lines_leftcol }));
+      kv_push(virt_lines.data.virt_lines, ((struct virt_line){ jtem, virt_lines_flags }));
       if (ERROR_SET(err)) {
         goto error;
       }

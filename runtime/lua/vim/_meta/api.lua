@@ -3,6 +3,10 @@
 -- DO NOT EDIT
 error('Cannot require a meta file')
 
+--- This file embeds vimdoc as the function descriptions
+--- so ignore any doc related errors.
+--- @diagnostic disable: undefined-doc-name,luadoc-miss-symbol
+
 vim.api = {}
 
 --- @private
@@ -589,6 +593,15 @@ function vim.api.nvim_buf_line_count(buffer) end
 ---     (highest priority last).
 --- - virt_text_pos : position of virtual text. Possible values:
 ---   - "eol": right after eol character (default).
+---   - "eol_right_align": display right aligned in the window
+---                        unless the virtual text is longer than
+---                        the space available. If the virtual
+---                        text is too long, it is truncated to
+---                        fit in the window after the EOL
+---                        character. If the line is wrapped, the
+---                        virtual text is shown after the end of
+---                        the line rather than the previous
+---                        screen line.
 ---   - "overlay": display over the specified column, without
 ---                shifting the underlying text.
 ---   - "right_align": display right aligned in the window.
@@ -625,10 +638,14 @@ function vim.api.nvim_buf_line_count(buffer) end
 ---     placed below the buffer line containing the mark.
 ---
 --- - virt_lines_above: place virtual lines above instead.
---- - virt_lines_leftcol: Place extmarks in the leftmost
+--- - virt_lines_leftcol: Place virtual lines in the leftmost
 ---                       column of the window, bypassing
 ---                       sign and number columns.
----
+--- - virt_lines_overflow: controls how to handle virtual lines wider
+---     than the window. Currently takes the one of the following values:
+---   - "trunc": truncate virtual lines on the right (default).
+---   - "scroll": virtual lines can scroll horizontally with 'nowrap',
+---      otherwise the same as "trunc".
 --- - ephemeral : for use with `nvim_set_decoration_provider()`
 ---     callbacks. The mark will only be used for the current
 ---     redraw cycle, and not be permantently stored in the
@@ -1237,27 +1254,28 @@ function vim.api.nvim_get_all_options_info() end
 --- match any combination of them.
 ---
 --- @param opts vim.api.keyset.get_autocmds Dict with at least one of the following:
---- - group (string|integer): the autocommand group name or id to match against.
---- - event (string|array): event or events to match against `autocmd-events`.
---- - pattern (string|array): pattern or patterns to match against `autocmd-pattern`.
---- Cannot be used with {buffer}
---- - buffer: Buffer number or list of buffer numbers for buffer local autocommands
+--- - buffer: (integer) Buffer number or list of buffer numbers for buffer local autocommands
 --- `autocmd-buflocal`. Cannot be used with {pattern}
+--- - event: (string|table) event or events to match against `autocmd-events`.
+--- - id: (integer) Autocommand ID to match.
+--- - group: (string|table) the autocommand group name or id to match against.
+--- - pattern: (string|table) pattern or patterns to match against `autocmd-pattern`.
+--- Cannot be used with {buffer}
 --- @return vim.api.keyset.get_autocmds.ret[] # Array of autocommands matching the criteria, with each item
 --- containing the following fields:
---- - id (number): the autocommand id (only when defined with the API).
---- - group (integer): the autocommand group id.
---- - group_name (string): the autocommand group name.
---- - desc (string): the autocommand description.
---- - event (string): the autocommand event.
---- - command (string): the autocommand command. Note: this will be empty if a callback is set.
---- - callback (function|string|nil): Lua function or name of a Vim script function
+--- - buffer: (integer) the buffer number.
+--- - buflocal: (boolean) true if the autocommand is buffer local.
+--- - command: (string) the autocommand command. Note: this will be empty if a callback is set.
+--- - callback: (function|string|nil): Lua function or name of a Vim script function
 ---   which is executed when this autocommand is triggered.
---- - once (boolean): whether the autocommand is only run once.
---- - pattern (string): the autocommand pattern.
+--- - desc: (string) the autocommand description.
+--- - event: (string) the autocommand event.
+--- - id: (integer) the autocommand id (only when defined with the API).
+--- - group: (integer) the autocommand group id.
+--- - group_name: (string) the autocommand group name.
+--- - once: (boolean) whether the autocommand is only run once.
+--- - pattern: (string) the autocommand pattern.
 ---   If the autocommand is buffer local |autocmd-buffer-local|:
---- - buflocal (boolean): true if the autocommand is buffer local.
---- - buffer (number): the buffer number.
 function vim.api.nvim_get_autocmds(opts) end
 
 --- Gets information about a channel.
