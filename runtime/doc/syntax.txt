@@ -246,12 +246,6 @@ Added		added line in a diff
 Changed		changed line in a diff
 Removed		removed line in a diff
 
-The names marked with * are the preferred groups; the others are minor groups.
-For the preferred groups, the "syntax.vim" file contains default highlighting.
-The minor groups are linked to the preferred groups, so they get the same
-highlighting.  You can override these defaults by using ":highlight" commands
-after sourcing the "syntax.vim" file.
-
 Note that highlight group names are not case sensitive.  "String" and "string"
 can be used for the same group.
 
@@ -342,7 +336,7 @@ Upon loading a file, Vim finds the relevant syntax file as follows:
 ==============================================================================
 4. Conversion to HTML				*convert-to-HTML* *2html.vim*
 
-The old to html converter has ben replaced by a Lua version and the
+The old to html converter has been replaced by a Lua version and the
 documentation has been moved to |:TOhtml|.
 
 ==============================================================================
@@ -817,6 +811,21 @@ doesn't work for you, or you don't edit Progress at all, use this in your
 startup vimrc: >
    :let filetype_w = "cweb"
 
+CSHARP							 *cs.vim* *ft-cs-syntax*
+
+C# raw string literals may use any number of quote marks to encapsulate the
+block, and raw interpolated string literals may use any number of braces to
+encapsulate the interpolation, e.g. >
+
+    $$$""""Hello {{{name}}}""""
+<
+By default, Vim highlights 3-8 quote marks, and 1-8 interpolation braces.
+The maximum numbers of quotes and braces recognized can configured using the
+following variables:
+
+    Variable					Default ~
+    g:cs_raw_string_quote_count			8
+    g:cs_raw_string_interpolation_brace_count	8
 
 DART						*dart.vim* *ft-dart-syntax*
 
@@ -1870,13 +1879,9 @@ instead, and the name of your source file should be `*.pike`
 
 LUA						*lua.vim* *ft-lua-syntax*
 
-The Lua syntax file can be used for versions 4.0, 5.0, 5.1 and 5.2 (5.2 is
-the default). You can select one of these versions using the global variables
-lua_version and lua_subversion. For example, to activate Lua
-5.1 syntax highlighting, set the variables like this: >
-
-	:let lua_version = 5
-	:let lua_subversion = 1
+The Lua syntax file can be used for versions 4.0, 5.0+. You can select one of
+these versions using the global variables |g:lua_version| and
+|g:lua_subversion|.
 
 
 MAIL						*mail.vim* *ft-mail.vim*
@@ -4820,16 +4825,20 @@ is mostly used, because it looks better.
 ==============================================================================
 13. Highlight command			*:highlight* *:hi* *E28* *E411* *E415*
 
-There are two types of highlight groups:
-- The built-in |highlight-groups|.
-- The ones used for specific languages.  For these the name starts with the
-  name of the language.  Many of these don't have any attributes, but are
-  linked to a group of the second type.
-							*hitest.vim*
-You can see all the groups currently active with this command: >
-    :so $VIMRUNTIME/syntax/hitest.vim
-This will open a new window containing all highlight group names, displayed
-in their own color.
+Nvim uses a range of highlight groups which fall into two categories: Editor
+interface and syntax highlighting. In rough order of importance, these are
+- basic editor |highlight-groups|
+- standard syntax |group-name|s (in addition, syntax files can define
+  language-specific groups, which are prefixed with the language name)
+- |diagnostic-highlights|
+- |treesitter-highlight-groups|
+- |lsp-semantic-highlight| groups
+- |lsp-highlight| of symbols and references
+
+Where appropriate, highlight groups are linked by default to one of the more basic
+groups, but colorschemes are expected to cover all of them. Under each tag,
+the corresponding highlight groups are highlighted using the current
+colorscheme.
 
 						*:colo* *:colorscheme* *E185*
 :colo[rscheme]		Output the name of the currently active color scheme.

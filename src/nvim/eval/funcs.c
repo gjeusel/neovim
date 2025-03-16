@@ -3556,23 +3556,26 @@ static void f_inputlist(typval_T *argvars, typval_T *rettv, EvalFuncData fptr)
     return;
   }
 
-  msg_ext_set_kind("list_cmd");
+  msg_ext_set_kind("confirm");
   msg_start();
   msg_row = Rows - 1;   // for when 'cmdheight' > 1
   lines_left = Rows;    // avoid more prompt
   msg_scroll = true;
   msg_clr_eos();
 
-  TV_LIST_ITER_CONST(argvars[0].vval.v_list, li, {
+  list_T *l = argvars[0].vval.v_list;
+  TV_LIST_ITER_CONST(l, li, {
     msg_puts(tv_get_string(TV_LIST_ITEM_TV(li)));
-    msg_putchar('\n');
+    if (!ui_has(kUIMessages) || TV_LIST_ITEM_NEXT(l, li) != NULL) {
+      msg_putchar('\n');
+    }
   });
 
   // Ask for choice.
   bool mouse_used = false;
   int selected = prompt_for_input(NULL, 0, false, &mouse_used);
   if (mouse_used) {
-    selected = tv_list_len(argvars[0].vval.v_list) - (cmdline_row - mouse_row);
+    selected = tv_list_len(l) - (cmdline_row - mouse_row);
   }
 
   rettv->vval.v_number = selected;
@@ -4191,7 +4194,7 @@ static void f_jobwait(typval_T *argvars, typval_T *rettv, EvalFuncData fptr)
 
   list_T *args = argvars[0].vval.v_list;
   Channel **jobs = xcalloc((size_t)tv_list_len(args), sizeof(*jobs));
-  MultiQueue *waiting_jobs = multiqueue_new_parent(loop_on_put, &main_loop);
+  MultiQueue *waiting_jobs = multiqueue_new(loop_on_put, &main_loop);
 
   // Validate, prepare jobs for waiting.
   int i = 0;

@@ -1,5 +1,5 @@
-local cdoc_grammar = require('scripts.cdoc_grammar')
-local c_grammar = require('src.nvim.generators.c_grammar')
+local cdoc_grammar = require('gen.cdoc_grammar')
+local c_grammar = require('gen.c_grammar')
 
 --- @class nvim.cdoc.parser.param
 --- @field name string
@@ -171,6 +171,7 @@ local function process_proto(item, state)
     end
   end
 
+  cur_obj.since = item.since
   cur_obj.deprecated_since = item.deprecated_since
 
   -- Remove some arguments

@@ -56,7 +56,7 @@ vim._extra = {
   inspect_pos = true,
 }
 
---- @private
+--- @nodoc
 vim.log = {
   --- @enum vim.log.levels
   levels = {
@@ -913,6 +913,7 @@ function vim._expand_pat(pat, env)
 
   local match_part = string.sub(last_part, search_index, #last_part)
   local prefix_match_pat = string.sub(pat, 1, #pat - #match_part) or ''
+  local last_char = string.sub(last_part, #last_part)
 
   local final_env = env
 
@@ -971,6 +972,7 @@ function vim._expand_pat(pat, env)
         type(k) == 'string'
         and string.sub(k, 1, string.len(match_part)) == match_part
         and k:match('^[_%w]+$') ~= nil -- filter out invalid identifiers for field, e.g. 'foo#bar'
+        and (last_char ~= '.' or string.sub(k, 1, 1) ~= '_') -- don't include private fields after '.'
       then
         keys[k] = true
       end
@@ -1140,6 +1142,21 @@ do
   end
 end
 
+--- @param inspect_strings boolean use vim.inspect() for strings
+function vim._print(inspect_strings, ...)
+  local msg = {}
+  for i = 1, select('#', ...) do
+    local o = select(i, ...)
+    if not inspect_strings and type(o) == 'string' then
+      table.insert(msg, o)
+    else
+      table.insert(msg, vim.inspect(o, { newline = '\n', indent = '  ' }))
+    end
+  end
+  print(table.concat(msg, '\n'))
+  return ...
+end
+
 --- "Pretty prints" the given arguments and returns them unmodified.
 ---
 --- Example:
@@ -1153,17 +1170,7 @@ end
 --- @param ... any
 --- @return any # given arguments.
 function vim.print(...)
-  local msg = {}
-  for i = 1, select('#', ...) do
-    local o = select(i, ...)
-    if type(o) == 'string' then
-      table.insert(msg, o)
-    else
-      table.insert(msg, vim.inspect(o, { newline = '\n', indent = '  ' }))
-    end
-  end
-  print(table.concat(msg, '\n'))
-  return ...
+  return vim._print(false, ...)
 end
 
 --- Translates keycodes.

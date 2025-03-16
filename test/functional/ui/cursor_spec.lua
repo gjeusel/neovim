@@ -379,12 +379,18 @@ describe('ui/cursor', function()
   end)
 
   it(':sleep does not hide cursor when sleeping', function()
-    n.feed(':sleep 100m | echo 42\n')
+    n.feed(':sleep 300m | echo 42')
+    screen:expect([[
+                               |
+      {1:~                        }|*3
+      :sleep 300m | echo 42^    |
+    ]])
+    n.feed('\n')
     screen:expect({
       grid = [[
       ^                         |
       {1:~                        }|*3
-      :sleep 100m | echo 42    |
+      :sleep 300m | echo 42    |
     ]],
       timeout = 100,
     })
@@ -396,12 +402,18 @@ describe('ui/cursor', function()
   end)
 
   it(':sleep! hides cursor when sleeping', function()
-    n.feed(':sleep! 100m | echo 42\n')
+    n.feed(':sleep! 300m | echo 42')
+    screen:expect([[
+                               |
+      {1:~                        }|*3
+      :sleep! 300m | echo 42^   |
+    ]])
+    n.feed('\n')
     screen:expect({
       grid = [[
                                |
       {1:~                        }|*3
-      :sleep! 100m | echo 42   |
+      :sleep! 300m | echo 42   |
     ]],
       timeout = 100,
     })

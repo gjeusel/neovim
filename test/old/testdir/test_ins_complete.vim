@@ -1208,8 +1208,8 @@ func Test_complete_cmdline()
   call assert_equal('abcxyz(', getline(3))
   com! -buffer TestCommand1 echo 'TestCommand1'
   com! -buffer TestCommand2 echo 'TestCommand2'
-  write TestCommand1Test
-  write TestCommand2Test
+  write! TestCommand1Test
+  write! TestCommand2Test
   " Test repeating <CTRL-X> <CTRL-V> and switching to another CTRL-X mode
   exe "normal oT\<C-X>\<C-V>\<C-X>\<C-V>\<C-X>\<C-F>\<Esc>"
   call assert_equal('TestCommand2Test', getline(4))
@@ -2837,7 +2837,7 @@ func Test_complete_fuzzy_match()
   call setline(1, ['Text', 'ToText', ''])
   call cursor(2, 1)
   call feedkeys("STe\<C-X>\<C-N>x\<CR>\<Esc>0", 'tx!')
-  call assert_equal('Tex', getline('.'))
+  call assert_equal('Tex', getline(line('.') - 1))
 
   " test case for nosort option
   set cot=menuone,menu,noinsert,fuzzy,nosort
@@ -2872,6 +2872,14 @@ func Test_complete_fuzzy_match()
   call feedkeys("i\<C-R>=CompAnother()\<CR>f", 'tx')
   call assert_equal("for", g:abbr)
   call assert_equal(2, g:selected)
+
+  set cot=menu,menuone,noselect,fuzzy
+  call feedkeys("i\<C-R>=CompAnother()\<CR>\<C-N>\<C-N>\<C-N>\<C-N>", 'tx')
+  call assert_equal("foo", g:word)
+  call feedkeys("i\<C-R>=CompAnother()\<CR>\<C-P>", 'tx')
+  call assert_equal("foo", g:word)
+  call feedkeys("i\<C-R>=CompAnother()\<CR>\<C-P>\<C-P>", 'tx')
+  call assert_equal("for", g:abbr)
 
   " clean up
   set omnifunc=
@@ -2990,53 +2998,55 @@ function Test_completeopt_preinsert()
   endfunc
   set omnifunc=Omni_test
   set completeopt=menu,menuone,preinsert
+  func GetLine()
+    let g:line = getline('.')
+    let g:col = col('.')
+  endfunc
 
   new
-  call feedkeys("S\<C-X>\<C-O>f", 'tx')
-  call assert_equal("fobar", getline('.'))
-  call feedkeys("\<C-E>\<ESC>", 'tx')
+  inoremap <buffer><F5> <C-R>=GetLine()<CR>
+  call feedkeys("S\<C-X>\<C-O>f\<F5>\<ESC>", 'tx')
+  call assert_equal("fobar", g:line)
+  call assert_equal(2, g:col)
 
-  call feedkeys("S\<C-X>\<C-O>foo", 'tx')
-  call assert_equal("foobar", getline('.'))
-  call feedkeys("\<C-E>\<ESC>", 'tx')
+  call feedkeys("S\<C-X>\<C-O>foo\<F5><ESC>", 'tx')
+  call assert_equal("foobar", g:line)
 
   call feedkeys("S\<C-X>\<C-O>foo\<BS>\<BS>\<BS>", 'tx')
   call assert_equal("", getline('.'))
-  call feedkeys("\<C-E>\<ESC>", 'tx')
 
   " delete a character and input new leader
-  call feedkeys("S\<C-X>\<C-O>foo\<BS>b", 'tx')
-  call assert_equal("fobar", getline('.'))
-  call feedkeys("\<C-E>\<ESC>", 'tx')
+  call feedkeys("S\<C-X>\<C-O>foo\<BS>b\<F5>\<ESC>", 'tx')
+  call assert_equal("fobar", g:line)
+  call assert_equal(4, g:col)
 
   " delete preinsert when prepare completion
   call feedkeys("S\<C-X>\<C-O>f\<Space>", 'tx')
   call assert_equal("f ", getline('.'))
-  call feedkeys("\<C-E>\<ESC>", 'tx')
 
-  call feedkeys("S\<C-X>\<C-O>你", 'tx')
-  call assert_equal("你的", getline('.'))
-  call feedkeys("\<C-E>\<ESC>", 'tx')
+  call feedkeys("S\<C-X>\<C-O>你\<F5>\<ESC>", 'tx')
+  call assert_equal("你的", g:line)
+  call assert_equal(4, g:col)
 
-  call feedkeys("S\<C-X>\<C-O>你好", 'tx')
-  call assert_equal("你好世界", getline('.'))
-  call feedkeys("\<C-E>\<ESC>", 'tx')
+  call feedkeys("S\<C-X>\<C-O>你好\<F5>\<ESC>", 'tx')
+  call assert_equal("你好世界", g:line)
+  call assert_equal(7, g:col)
 
-  call feedkeys("Shello   wo\<Left>\<Left>\<Left>\<C-X>\<C-O>f", 'tx')
-  call assert_equal("hello  fobar wo", getline('.'))
-  call feedkeys("\<C-E>\<ESC>", 'tx')
+  call feedkeys("Shello   wo\<Left>\<Left>\<Left>\<C-X>\<C-O>f\<F5>\<ESC>", 'tx')
+  call assert_equal("hello  fobar wo", g:line)
+  call assert_equal(9, g:col)
 
-  call feedkeys("Shello   wo\<Left>\<Left>\<Left>\<C-X>\<C-O>f\<BS>", 'tx')
-  call assert_equal("hello   wo", getline('.'))
-  call feedkeys("\<C-E>\<ESC>", 'tx')
+  call feedkeys("Shello   wo\<Left>\<Left>\<Left>\<C-X>\<C-O>f\<BS>\<F5>\<ESC>", 'tx')
+  call assert_equal("hello   wo", g:line)
+  call assert_equal(8, g:col)
 
-  call feedkeys("Shello   wo\<Left>\<Left>\<Left>\<C-X>\<C-O>foo", 'tx')
-  call assert_equal("hello  foobar wo", getline('.'))
-  call feedkeys("\<C-E>\<ESC>", 'tx')
+  call feedkeys("Shello   wo\<Left>\<Left>\<Left>\<C-X>\<C-O>foo\<F5>\<ESC>", 'tx')
+  call assert_equal("hello  foobar wo", g:line)
+  call assert_equal(11, g:col)
 
-  call feedkeys("Shello   wo\<Left>\<Left>\<Left>\<C-X>\<C-O>foo\<BS>b", 'tx')
-  call assert_equal("hello  fobar wo", getline('.'))
-  call feedkeys("\<C-E>\<ESC>", 'tx')
+  call feedkeys("Shello   wo\<Left>\<Left>\<Left>\<C-X>\<C-O>foo\<BS>b\<F5>\<ESC>", 'tx')
+  call assert_equal("hello  fobar wo", g:line)
+  call assert_equal(11, g:col)
 
   " confirm
   call feedkeys("S\<C-X>\<C-O>f\<C-Y>", 'tx')
@@ -3048,9 +3058,9 @@ function Test_completeopt_preinsert()
   call assert_equal("fo", getline('.'))
   call assert_equal(2, col('.'))
 
-  call feedkeys("S hello hero\<CR>h\<C-X>\<C-N>", 'tx')
-  call assert_equal("hello", getline('.'))
-  call assert_equal(1, col('.'))
+  call feedkeys("S hello hero\<CR>h\<C-X>\<C-N>\<F5>\<ESC>", 'tx')
+  call assert_equal("hello", g:line)
+  call assert_equal(2, col('.'))
 
   call feedkeys("Sh\<C-X>\<C-N>\<C-Y>", 'tx')
   call assert_equal("hello", getline('.'))
@@ -3070,17 +3080,17 @@ function Test_completeopt_preinsert()
   call assert_equal(1, col('.'))
 
   " whole line
-  call feedkeys("Shello hero\<CR>\<C-X>\<C-L>", 'tx')
-  call assert_equal("hello hero", getline('.'))
-  call assert_equal(1, col('.'))
+  call feedkeys("Shello hero\<CR>\<C-X>\<C-L>\<F5>\<ESC>", 'tx')
+  call assert_equal("hello hero", g:line)
+  call assert_equal(1, g:col)
 
-  call feedkeys("Shello hero\<CR>he\<C-X>\<C-L>", 'tx')
-  call assert_equal("hello hero", getline('.'))
-  call assert_equal(2, col('.'))
+  call feedkeys("Shello hero\<CR>he\<C-X>\<C-L>\<F5>\<ESC>", 'tx')
+  call assert_equal("hello hero", g:line)
+  call assert_equal(3, g:col)
 
-  call feedkeys("Shello hero\<CR>h\<C-X>\<C-N>er", 'tx')
-  call assert_equal("hero", getline('.'))
-  call assert_equal(3, col('.'))
+  call feedkeys("Shello hero\<CR>h\<C-X>\<C-N>er\<F5>\<ESC>", 'tx')
+  call assert_equal("hero", g:line)
+  call assert_equal(4, g:col)
 
   " can not work with fuzzy
   set cot+=fuzzy
@@ -3090,20 +3100,81 @@ function Test_completeopt_preinsert()
 
   " test for fuzzy and noinsert
   set cot+=noinsert
-  call feedkeys("S\<C-X>\<C-O>fb", 'tx')
-  call assert_equal("fb", getline('.'))
-  call assert_equal(2, col('.'))
+  call feedkeys("S\<C-X>\<C-O>fb\<F5>\<ESC>", 'tx')
+  call assert_equal("fb", g:line)
+  call assert_equal(3, g:col)
 
-  call feedkeys("S\<C-X>\<C-O>你", 'tx')
-  call assert_equal("你", getline('.'))
-  call assert_equal(1, col('.'))
+  call feedkeys("S\<C-X>\<C-O>你\<F5>\<ESC>", 'tx')
+  call assert_equal("你", g:line)
+  call assert_equal(4, g:col)
 
   call feedkeys("S\<C-X>\<C-O>fb\<C-Y>", 'tx')
   call assert_equal("fobar", getline('.'))
   call assert_equal(5, col('.'))
 
+  " When the pum is not visible, the preinsert has no effect
+  set cot=preinsert
+  call feedkeys("Sfoo1 foo2\<CR>f\<C-X>\<C-N>bar", 'tx')
+  call assert_equal("foo1bar", getline('.'))
+  call assert_equal(7, col('.'))
+
+  set cot=preinsert,menuone
+  call feedkeys("Sfoo1 foo2\<CR>f\<C-X>\<C-N>\<F5>\<ESC>", 'tx')
+  call assert_equal("foo1", g:line)
+  call assert_equal(2, g:col)
+
+  inoremap <buffer> <f3> <cmd>call complete(4, [{'word': "fobar"}, {'word': "foobar"}])<CR>
+  call feedkeys("Swp.\<F3>\<F5>\<BS>\<ESC>", 'tx')
+  call assert_equal("wp.fobar", g:line)
+  call assert_equal(4, g:col)
+  call assert_equal("wp.", getline('.'))
+
   bw!
   set cot&
+  set omnifunc&
+  delfunc Omni_test
+endfunc
+
+" Check that mark positions are correct after triggering multiline completion.
+func Test_complete_multiline_marks()
+  func Omni_test(findstart, base)
+    if a:findstart
+      return col(".")
+    endif
+    return [
+          \ #{word: "func ()\n\t\nend"},
+          \ #{word: "foobar"},
+          \ #{word: "你好\n\t\n我好"}
+          \ ]
+  endfunc
+  set omnifunc=Omni_test
+
+  new
+  let lines = mapnew(range(10), 'string(v:val)')
+  call setline(1, lines)
+  call setpos("'a", [0, 3, 1, 0])
+
+  call feedkeys("A \<C-X>\<C-O>\<C-E>\<BS>", 'tx')
+  call assert_equal(lines, getline(1, '$'))
+  call assert_equal([0, 3, 1, 0], getpos("'a"))
+
+  call feedkeys("A \<C-X>\<C-O>\<C-N>\<C-E>\<BS>", 'tx')
+  call assert_equal(lines, getline(1, '$'))
+  call assert_equal([0, 3, 1, 0], getpos("'a"))
+
+  call feedkeys("A \<C-X>\<C-O>\<C-N>\<C-N>\<C-E>\<BS>", 'tx')
+  call assert_equal(lines, getline(1, '$'))
+  call assert_equal([0, 3, 1, 0], getpos("'a"))
+
+  call feedkeys("A \<C-X>\<C-O>\<C-N>\<C-N>\<C-N>\<C-E>\<BS>", 'tx')
+  call assert_equal(lines, getline(1, '$'))
+  call assert_equal([0, 3, 1, 0], getpos("'a"))
+
+  call feedkeys("A \<C-X>\<C-O>\<C-Y>", 'tx')
+  call assert_equal(['0 func ()', "\t", 'end'] + lines[1:], getline(1, '$'))
+  call assert_equal([0, 5, 1, 0], getpos("'a"))
+
+  bw!
   set omnifunc&
   delfunc Omni_test
 endfunc

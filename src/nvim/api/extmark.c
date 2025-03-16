@@ -455,8 +455,7 @@ Array nvim_buf_get_extmarks(Buffer buffer, Integer ns_id, Object start, Object e
 ///                    otherwise the same as "trunc".
 ///               - ephemeral : for use with |nvim_set_decoration_provider()|
 ///                   callbacks. The mark will only be used for the current
-///                   redraw cycle, and not be permantently stored in the
-///                   buffer.
+///                   redraw cycle, and not be permanently stored in the buffer.
 ///               - right_gravity : boolean that indicates the direction
 ///                   the extmark will be shifted in when new text is inserted
 ///                   (true for right, false for left). Defaults to true.
@@ -492,6 +491,10 @@ Array nvim_buf_get_extmarks(Buffer buffer, Integer ns_id, Object start, Object e
 ///                   When a character is supplied it is used as |:syn-cchar|.
 ///                   "hl_group" is used as highlight for the cchar if provided,
 ///                   otherwise it defaults to |hl-Conceal|.
+///               - conceal_lines: string which should be empty. When
+///                   provided, lines in the range are not drawn at all
+///                   (according to 'conceallevel'); the next unconcealed line
+///                   is drawn instead.
 ///               - spell: boolean indicating that spell checking should be
 ///                   performed within this extmark
 ///               - ui_watched: boolean that indicates the mark should be drawn
@@ -607,14 +610,22 @@ Integer nvim_buf_set_extmark(Buffer buffer, Integer ns_id, Integer line, Integer
   if (HAS_KEY(opts, set_extmark, conceal)) {
     hl.flags |= kSHConceal;
     has_hl = true;
-    String c = opts->conceal;
-    if (c.size > 0) {
+    if (opts->conceal.size > 0) {
       int ch;
-      hl.conceal_char = utfc_ptr2schar(c.data, &ch);
-      if (!hl.conceal_char || !vim_isprintc(ch)) {
-        api_set_error(err, kErrorTypeValidation, "conceal char has to be printable");
+      hl.conceal_char = utfc_ptr2schar(opts->conceal.data, &ch);
+      VALIDATE(hl.conceal_char && vim_isprintc(ch), "%s", "conceal char has to be printable", {
         goto error;
-      }
+      });
+    }
+  }
+
+  if (HAS_KEY(opts, set_extmark, conceal_lines)) {
+    hl.flags |= kSHConcealLines;
+    has_hl = true;
+    if (opts->conceal_lines.size > 0) {
+      VALIDATE(*opts->conceal_lines.data == NUL, "%s", "conceal_lines has to be an empty string", {
+        goto error;
+      });
     }
   }
 
@@ -817,7 +828,8 @@ Integer nvim_buf_set_extmark(Buffer buffer, Integer ns_id, Integer line, Integer
     }
   } else {
     if (opts->ephemeral) {
-      api_set_error(err, kErrorTypeException, "not yet implemented");
+      api_set_error(err, kErrorTypeException,
+                    "cannot set emphemeral mark outside of a decoration provider");
       goto error;
     }
 
@@ -861,6 +873,10 @@ Integer nvim_buf_set_extmark(Buffer buffer, Integer ns_id, Integer line, Integer
           decor_flags |= MT_FLAG_DECOR_HL;
         }
       }
+    }
+
+    if (hl.flags & kSHConcealLines) {
+      decor_flags |= MT_FLAG_DECOR_CONCEAL_LINES;
     }
 
     DecorInline decor = DECOR_INLINE_INIT;
@@ -1033,6 +1049,7 @@ void nvim_set_decoration_provider(Integer ns_id, Dict(set_decoration_provider) *
     { "on_end", &opts->on_end, &p->redraw_end },
     { "_on_hl_def", &opts->_on_hl_def, &p->hl_def },
     { "_on_spell_nav", &opts->_on_spell_nav, &p->spell_nav },
+    { "_on_conceal_line", &opts->_on_conceal_line, &p->conceal_line },
     { NULL, NULL, NULL },
   };
 

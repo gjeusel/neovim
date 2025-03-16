@@ -856,6 +856,7 @@ char *vim_findfile(void *search_ctx_arg)
 
             // Try without extra suffix and then with suffixes
             // from 'suffixesadd'.
+            len = file_path.size;
             char *suf = search_ctx->ffsc_tagfile ? "" : curbuf->b_p_sua;
             while (true) {
               // if file exists and we didn't already find it
@@ -916,8 +917,8 @@ char *vim_findfile(void *search_ctx_arg)
                 break;
               }
               assert(MAXPATHL >= file_path.size);
-              file_path.size += copy_option_part(&suf, file_path.data + file_path.size,
-                                                 MAXPATHL - file_path.size, ",");
+              file_path.size = len + copy_option_part(&suf, file_path.data + len,
+                                                      MAXPATHL - len, ",");
             }
           }
         } else {
@@ -1515,20 +1516,20 @@ char *find_file_in_path_option(char *ptr, size_t len, int options, int first, ch
         }
 
         // When the file doesn't exist, try adding parts of 'suffixesadd'.
+        size_t NameBufflen = l;
         char *suffix = suffixes;
         while (true) {
           if ((os_path_exists(NameBuff)
                && (find_what == FINDFILE_BOTH
-                   || ((find_what == FINDFILE_DIR)
-                       == os_isdir(NameBuff))))) {
-            file_name = xmemdupz(NameBuff, l);
+                   || ((find_what == FINDFILE_DIR) == os_isdir(NameBuff))))) {
+            file_name = xmemdupz(NameBuff, NameBufflen);
             goto theend;
           }
           if (*suffix == NUL) {
             break;
           }
           assert(MAXPATHL >= l);
-          l += copy_option_part(&suffix, NameBuff + l, MAXPATHL - l, ",");
+          NameBufflen = l + copy_option_part(&suffix, NameBuff + l, MAXPATHL - l, ",");
         }
       }
     }
@@ -1746,7 +1747,7 @@ static char *eval_includeexpr(const char *const ptr, const size_t len)
 {
   const sctx_T save_sctx = current_sctx;
   set_vim_var_string(VV_FNAME, ptr, (ptrdiff_t)len);
-  current_sctx = curbuf->b_p_script_ctx[kBufOptIncludeexpr].script_ctx;
+  current_sctx = curbuf->b_p_script_ctx[kBufOptIncludeexpr];
 
   char *res = eval_to_string_safe(curbuf->b_p_inex,
                                   was_set_insecurely(curwin, kOptIncludeexpr, OPT_LOCAL),

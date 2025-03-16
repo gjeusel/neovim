@@ -1345,7 +1345,7 @@ local function close_preview_window(winnr, bufnrs)
       return
     end
 
-    local augroup = 'preview_window_' .. winnr
+    local augroup = 'nvim.preview_window_' .. winnr
     pcall(api.nvim_del_augroup_by_name, augroup)
     pcall(api.nvim_win_close, winnr, true)
   end)
@@ -1416,6 +1416,11 @@ function M._make_floating_popup_size(contents, opts)
 
   -- make sure borders are always inside the screen
   width = math.min(width, screen_width - border_width)
+
+  -- Make sure that the width is large enough to fit the title.
+  if opts.title then
+    width = math.max(width, vim.fn.strdisplaywidth(opts.title))
+  end
 
   if wrap_at then
     wrap_at = math.min(wrap_at, width)
@@ -1498,6 +1503,7 @@ end
 --- (default: `'cursor'`)
 --- @field relative? 'mouse'|'cursor'|'editor'
 ---
+--- Adjusts placement relative to cursor.
 --- - "auto": place window based on which side of the cursor has more lines
 --- - "above": place the window above the cursor unless there are not enough lines
 ---   to display the full window height.
@@ -1616,23 +1622,24 @@ function M.open_floating_preview(contents, syntax, opts)
       api.nvim_win_set_var(floating_winnr, opts.focus_id, bufnr)
     end
     api.nvim_buf_set_var(bufnr, 'lsp_floating_preview', floating_winnr)
+    api.nvim_win_set_var(floating_winnr, 'lsp_floating_bufnr', bufnr)
   end
 
-  local augroup_name = ('nvim.closing_floating_preview_%d'):format(floating_winnr)
-  local ok =
-    pcall(api.nvim_get_autocmds, { group = augroup_name, pattern = tostring(floating_winnr) })
-  if not ok then
-    api.nvim_create_autocmd('WinClosed', {
-      group = api.nvim_create_augroup(augroup_name, {}),
-      pattern = tostring(floating_winnr),
-      callback = function()
-        if api.nvim_buf_is_valid(bufnr) then
-          vim.b[bufnr].lsp_floating_preview = nil
-        end
-        api.nvim_del_augroup_by_name(augroup_name)
-      end,
-    })
-  end
+  api.nvim_create_autocmd('WinClosed', {
+    group = api.nvim_create_augroup('nvim.closing_floating_preview', { clear = true }),
+    callback = function(args)
+      local winid = tonumber(args.match)
+      local ok, preview_bufnr = pcall(api.nvim_win_get_var, winid, 'lsp_floating_bufnr')
+      if
+        ok
+        and api.nvim_buf_is_valid(preview_bufnr)
+        and winid == vim.b[preview_bufnr].lsp_floating_preview
+      then
+        vim.b[bufnr].lsp_floating_preview = nil
+        return true
+      end
+    end,
+  })
 
   vim.wo[floating_winnr].foldenable = false -- Disable folding.
   vim.wo[floating_winnr].wrap = opts.wrap -- Soft wrapping.
@@ -1644,8 +1651,16 @@ function M.open_floating_preview(contents, syntax, opts)
 
   if do_stylize then
     vim.wo[floating_winnr].conceallevel = 2
+    vim.wo[floating_winnr].concealcursor = 'n'
     vim.bo[floating_bufnr].filetype = 'markdown'
     vim.treesitter.start(floating_bufnr)
+    if not opts.height then
+      -- Reduce window height if TS highlighter conceals code block backticks.
+      local conceal_height = api.nvim_win_text_height(floating_winnr, {}).all
+      if conceal_height < api.nvim_win_get_height(floating_winnr) then
+        api.nvim_win_set_height(floating_winnr, conceal_height)
+      end
+    end
   end
 
   return floating_bufnr, floating_winnr
@@ -1885,7 +1900,7 @@ function M.try_trim_markdown_code_blocks(lines)
   return 'markdown'
 end
 
----@param window integer?: window handle or 0 for current, defaults to current
+---@param window integer?: |window-ID| or 0 for current, defaults to current
 ---@param position_encoding 'utf-8'|'utf-16'|'utf-32'
 local function make_position_param(window, position_encoding)
   window = window or 0
@@ -1904,7 +1919,7 @@ end
 
 --- Creates a `TextDocumentPositionParams` object for the current buffer and cursor position.
 ---
----@param window integer?: window handle or 0 for current, defaults to current
+---@param window integer?: |window-ID| or 0 for current, defaults to current
 ---@param position_encoding 'utf-8'|'utf-16'|'utf-32'
 ---@return lsp.TextDocumentPositionParams
 ---@see https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocumentPositionParams
@@ -1963,7 +1978,7 @@ end
 --- `textDocument/codeAction`, `textDocument/colorPresentation`,
 --- `textDocument/rangeFormatting`.
 ---
----@param window integer? window handle or 0 for current, defaults to current
+---@param window integer?: |window-ID| or 0 for current, defaults to current
 ---@param position_encoding "utf-8"|"utf-16"|"utf-32"
 ---@return { textDocument: { uri: lsp.DocumentUri }, range: lsp.Range }
 function M.make_range_params(window, position_encoding)
