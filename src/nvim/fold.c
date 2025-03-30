@@ -2358,7 +2358,8 @@ static linenr_T foldUpdateIEMSRecurse(garray_T *const gap, const int level,
               flp->wp->w_fold_manual = true;
             }
           } else {
-            fp->fd_flags = (fp - 1)->fd_flags;
+            // https://github.com/neovim/neovim/issues/32759
+            // fp->fd_flags = (fp - 1)->fd_flags;
           }
           fp->fd_small = kNone;
           // If using the "marker", "expr" or "syntax" method, we
